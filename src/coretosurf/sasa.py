@@ -137,14 +137,136 @@ def _selection_expr(obj, residues):
     return "(%s) and (%s)" % (obj, " or ".join(parts))
 
 
+FORMATS = ("pymol", "rosetta")
+
+# Result of the most recent apply_layers call: {layer: [Residue, ...]}
+last_layers = None
+
+
+def _split_resi(resi):
+    """'52' -> (52, ''), '52A' -> (52, 'A'), '-3' -> (-3, ''). None if odd."""
+    i = len(resi)
+    while i > 0 and not resi[i - 1].isdigit():
+        i -= 1
+    try:
+        return int(resi[:i]), resi[i:]
+    except ValueError:
+        return None
+
+
+def _runs(numbers):
+    """Sorted unique ints -> list of (start, end) runs of consecutive ints."""
+    runs = []
+    for n in numbers:
+        if runs and n == runs[-1][1] + 1:
+            runs[-1][1] = n
+        else:
+            runs.append([n, n])
+    return runs
+
+
+def _group_by_chain(residues):
+    """{chain: (sorted plain resi ints, [resi with insertion code / odd])}.
+
+    Chains keep their order of first appearance. Segment ids are ignored.
+    """
+    chains = {}
+    for r in residues:
+        plain, other = chains.setdefault(r.chain, (set(), []))
+        split = _split_resi(r.resi)
+        if split is not None and split[1] == "":
+            plain.add(split[0])
+        elif r.resi not in other:
+            other.append(r.resi)
+    return {c: (sorted(p), o) for c, (p, o) in chains.items()}
+
+
+def _pymol_num(n):
+    # A leading minus would be read as a range operator.
+    return "\\%d" % n if n < 0 else "%d" % n
+
+
+def format_pymol(residues):
+    """PyMOL selection: (chain A and resi 1-5+9) or (chain B and resi 3)."""
+    parts = []
+    for chain, (plain, other) in _group_by_chain(residues).items():
+        items = []
+        for a, b in _runs(plain):
+            if a == b:
+                items.append(_pymol_num(a))
+            elif a + 1 == b:
+                items.extend([_pymol_num(a), _pymol_num(b)])
+            else:
+                items.append("%s-%s" % (_pymol_num(a), _pymol_num(b)))
+        items.extend(_escape_resi(x) for x in other)
+        chain_sel = "chain %s" % chain if chain.strip() else "chain ''"
+        parts.append("(%s and resi %s)" % (chain_sel, "+".join(items)))
+    return " or ".join(parts) if parts else "none"
+
+
+def format_rosetta(residues):
+    """Rosetta ResidueIndexSelector PDB numbering: 1A-5A,9A,3B.
+
+    Returns (string, skipped) where skipped lists residues that cannot be
+    expressed (insertion codes, missing or multi-letter chain ids).
+    """
+    items, skipped = [], []
+    for chain, (plain, other) in _group_by_chain(residues).items():
+        label = "chain %s" % chain if chain.strip() else "no chain"
+        if len(chain) != 1 or not chain.strip():
+            skipped.extend("%s (%s)" % (n, label) for n in plain)
+            skipped.extend("%s (%s)" % (x, label) for x in other)
+            continue
+        # Negative numbers would be ambiguous with the range dash.
+        skipped.extend("%d (%s)" % (n, label) for n in plain if n < 0)
+        for a, b in _runs([n for n in plain if n >= 0]):
+            if a == b:
+                items.append("%d%s" % (a, chain))
+            else:
+                items.append("%d%s-%d%s" % (a, chain, b, chain))
+        skipped.extend("%s (%s)" % (x, label) for x in other)
+    return ",".join(items), skipped
+
+
+def format_layers(layers=None, fmt="pymol"):
+    """Text with one line per layer, plus a list of warnings.
+
+    pymol:   select core, (chain A and resi 1-5) or (chain B and resi 3+5)
+    rosetta: core: 1A-5A,3B,5B
+    """
+    if layers is None:
+        layers = last_layers
+    if layers is None:
+        raise ValueError("no classification yet; run coretosurf first")
+    fmt = fmt.lower()
+    if fmt not in FORMATS:
+        raise ValueError("format must be one of %s" % ", ".join(FORMATS))
+    lines, warnings = [], []
+    for name in LAYERS:
+        if fmt == "pymol":
+            lines.append("select %s, %s" % (name, format_pymol(layers[name])))
+        else:
+            text, skipped = format_rosetta(layers[name])
+            lines.append("%s: %s" % (name, text))
+            if skipped:
+                warnings.append(
+                    "%s: %d residue(s) with insertion codes, negative "
+                    "numbers or without a single-letter chain id "
+                    "omitted: %s"
+                    % (name, len(skipped), ", ".join(skipped)))
+    return "\n".join(lines), warnings
+
+
 def apply_layers(obj, core_cut, boundary_cut, unit="abs", state=-1,
                  color=True, prefix=""):
     """Create the core/boundary/surface selections and color them.
 
     Returns a dict with the number of residues per layer.
     """
+    global last_layers
     residues = get_residues(obj, state)
     layers = classify(residues, core_cut, boundary_cut, unit)
+    last_layers = layers
     for name in LAYERS:
         sele = prefix + name
         cmd.select(sele, _selection_expr(obj, layers[name]), enable=0)

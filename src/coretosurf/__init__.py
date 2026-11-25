@@ -67,6 +67,38 @@ ARGUMENTS
     return counts
 
 
+def coretosurf_print(format="pymol", copy=1):
+    """
+DESCRIPTION
+
+    Print the residues of the last core/boundary/surface classification
+    with PDB numbering and chain, and copy them to the clipboard.
+
+USAGE
+
+    coretosurf_print [ format [, copy ]]
+
+ARGUMENTS
+
+    format = pymol (default): select core, (chain A and resi 1-5) or ...
+             rosetta: core: 1A-5A,9A,3B  (ResidueIndexSelector resnums;
+             residues with insertion codes are omitted with a warning)
+    copy = 0 to only print
+    """
+    from . import sasa
+    text, warnings = sasa.format_layers(fmt=format)
+    print(text)
+    for w in warnings:
+        print(" CoreToSurf warning: " + w)
+    if int(copy):
+        try:
+            from pymol.Qt import QtWidgets
+            QtWidgets.QApplication.clipboard().setText(text)
+        except Exception:
+            print(" CoreToSurf: clipboard not available")
+    return text
+
+
 def open_gui():
     from . import gui
     return gui.show_window()
@@ -115,3 +147,6 @@ def __init_plugin__(app=None):
 if cmd is not None:
     cmd.extend("coretosurf", coretosurf)
     cmd.auto_arg[0]["coretosurf"] = cmd.auto_arg[0]["zoom"]
+    cmd.extend("coretosurf_print", coretosurf_print)
+    cmd.auto_arg[0]["coretosurf_print"] = [
+        lambda: cmd.Shortcut(["pymol", "rosetta"]), "format", ", "]

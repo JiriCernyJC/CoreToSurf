@@ -83,6 +83,18 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         row.addWidget(recompute_btn)
         layout.addLayout(row)
 
+        # Export
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Format:"))
+        self.format_combo = QtWidgets.QComboBox()
+        self.format_combo.addItem("PyMOL selection", "pymol")
+        self.format_combo.addItem("Rosetta ResidueIndexSelector", "rosetta")
+        row.addWidget(self.format_combo, 1)
+        copy_btn = QtWidgets.QPushButton("Print + copy to clipboard")
+        copy_btn.clicked.connect(self.print_and_copy)
+        row.addWidget(copy_btn)
+        layout.addLayout(row)
+
         # Status line
         self.status = QtWidgets.QLabel("")
         self.status.setWordWrap(True)
@@ -191,6 +203,25 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         self.status.setText(
             "core: %(core)d   boundary: %(boundary)d   surface: %(surface)d "
             "residues" % counts)
+
+    def print_and_copy(self):
+        # Make sure the exported residues match the current slider values.
+        self.update_selection()
+        fmt = self.format_combo.currentData()
+        try:
+            text, warnings = sasa.format_layers(fmt=fmt)
+        except Exception as e:
+            self.status.setText("Error: %s" % e)
+            return
+        print(text)
+        for w in warnings:
+            print(" CoreToSurf warning: " + w)
+        QtWidgets.QApplication.clipboard().setText(text)
+        msg = "Selections printed and copied to the clipboard (%s)." % \
+            self.format_combo.currentText()
+        if warnings:
+            msg += " Some residues were omitted, see the PyMOL log."
+        self.status.setText(msg)
 
 
 _window = None

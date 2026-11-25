@@ -59,6 +59,15 @@ Install New Plugin* and choose a zip of the `src/coretosurf` folder.
 - **Live update**: when checked, the selections update while a slider is dragged;
   when unchecked, they update when the slider is released.
 - **Recompute SASA**: discard the cached SASA and recalculate.
+- **Format** + **Print + copy to clipboard**: print the three layers to the
+  PyMOL log and copy them to the clipboard, using PDB residue numbers and chains:
+  - *PyMOL selection* (default), ready to paste back into PyMOL:
+    `select core, (chain A and resi 1-5+9) or (chain B and resi 3+5)`
+  - *Rosetta ResidueIndexSelector* (`resnums` format):
+    `core: 1A-5A,9A,3B,5B`.
+    This format cannot express residues with insertion codes, negative residue numbers or
+    blank or multi-letter chain ids. Such residues are omitted, and a warning
+    in the PyMOL log lists them.
 
 The plugin creates three selections named `core`, `boundary` and `surface`, and
 colors their carbon atoms. The representation is not changed.
@@ -72,6 +81,9 @@ coretosurf                      # open the GUI
 coretosurf 1ubq, 20, 40         # absolute Å²
 coretosurf 1ubq, 20, 50, rel    # relative %
 coretosurf 1ubq, recompute=1    # force SASA recalculation
+coretosurf_print                # print + copy last result (PyMOL format)
+coretosurf_print rosetta        # ... as Rosetta ResidueIndexSelector
+coretosurf_print copy=0         # print only
 ```
 
 ## How SASA is computed
