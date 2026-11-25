@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coretosurf"
+dynamic = ["version"]
+description = "PyMOL plugin for interactive core / boundary / surface residue selection by SASA"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Ajasja Ljubetič" }]
+requires-python = ">=3.8"
+# PyMOL is intentionally not listed: it is installed via conda or the
+# Schrödinger installer, and there is no official PyMOL package on PyPI.
+dependencies = []
+keywords = ["pymol", "plugin", "protein", "sasa", "protein design"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Intended Audience :: Science/Research",
+]
+
+[project.scripts]
+coretosurf = "coretosurf.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "coretosurf.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
