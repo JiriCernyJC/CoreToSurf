@@ -4,6 +4,8 @@ A PyMOL 3 plugin for interactive classification of residues into **core**
 (orange), **boundary** (green) and **surface** (blue) based on solvent
 accessible surface area (SASA).
 
+![CoreToSurf: moving the cutoff sliders updates the core, boundary and surface selections](assets/coretosurf_readme_animation.gif)
+
 ## Installation
 
 Install with the **same Python environment that PyMOL uses**. PyMOL itself is
