@@ -228,6 +228,42 @@ def format_rosetta(residues):
     return ",".join(items), skipped
 
 
+class _Res(object):
+    __slots__ = ("chain", "resi")
+
+    def __init__(self, chain, resi):
+        self.chain, self.resi = chain, resi
+
+
+def residues_in_selection(selection):
+    """Unique (chain, resi) residues of a PyMOL selection, in model order."""
+    seen, out = set(), []
+
+    def add(chain, resi):
+        if (chain, resi) not in seen:
+            seen.add((chain, resi))
+            out.append(_Res(chain, resi))
+
+    cmd.iterate(selection, "add(chain, resi)", space={"add": add})
+    return out
+
+
+def format_selection(selection, fmt="pymol"):
+    """Format the residues of any PyMOL selection.
+
+    Returns (text, skipped). pymol: (chain A and resi 1-5) or (...);
+    rosetta: 1A-5A,3B. ``skipped`` lists residues the Rosetta format
+    cannot express (always empty for pymol).
+    """
+    fmt = fmt.lower()
+    if fmt not in FORMATS:
+        raise ValueError("format must be one of %s" % ", ".join(FORMATS))
+    residues = residues_in_selection(selection)
+    if fmt == "pymol":
+        return format_pymol(residues), []
+    return format_rosetta(residues)
+
+
 def format_layers(layers=None, fmt="pymol"):
     """Text with one line per layer, plus a list of warnings.
 

@@ -81,10 +81,22 @@ coretosurf                      # open the GUI
 coretosurf 1ubq, 20, 40         # absolute Å²
 coretosurf 1ubq, 20, 50, rel    # relative %
 coretosurf 1ubq, recompute=1    # force SASA recalculation
-coretosurf_print                # print + copy last result (PyMOL format)
-coretosurf_print rosetta        # ... as Rosetta ResidueIndexSelector
-coretosurf_print copy=0         # print only
 ```
+
+### `print_sel`: residues of any selection
+
+`print_sel selection [, format [, copy]]` prints the residues of any PyMOL
+selection with PDB numbering and chain, and copies the result to the clipboard.
+
+```
+print_sel core                                  # (chain A and resi 3+5+13-17) or ...
+print_sel visible and (core or surface)         # any selection expression
+print_sel chain A and boundary, rosetta         # 7A,21A,36A,44A-45A
+print_sel core, copy=0                          # print only
+```
+
+The format is `pymol` (default) or `rosetta`, as described above. Residues
+from several objects that share a chain and residue number appear once.
 
 ## How SASA is computed
 

@@ -67,35 +67,53 @@ ARGUMENTS
     return counts
 
 
-def coretosurf_print(format="pymol", copy=1):
+def copy_to_clipboard(text):
+    """Copy text to the clipboard. Returns False if no clipboard is available."""
+    try:
+        from pymol.Qt import QtWidgets
+        if QtWidgets.QApplication.instance() is None:
+            return False
+        QtWidgets.QApplication.clipboard().setText(text)
+        return True
+    except Exception:
+        return False
+
+
+def print_sel(selection="sele", format="pymol", copy=1):
     """
 DESCRIPTION
 
-    Print the residues of the last core/boundary/surface classification
-    with PDB numbering and chain, and copy them to the clipboard.
+    Print the residues of any selection with PDB numbering and chain,
+    and copy the result to the clipboard.
 
 USAGE
 
-    coretosurf_print [ format [, copy ]]
+    print_sel [ selection [, format [, copy ]]]
 
 ARGUMENTS
 
-    format = pymol (default): select core, (chain A and resi 1-5) or ...
-             rosetta: core: 1A-5A,9A,3B  (ResidueIndexSelector resnums;
-             residues with insertion codes are omitted with a warning)
-    copy = 0 to only print
+    selection = any PyMOL selection {default: sele}
+    format = pymol (default): (chain A and resi 1-5+9) or (chain B and resi 3)
+             rosetta: 1A-5A,9A,3B  (ResidueIndexSelector resnums; residues
+             with insertion codes, negative numbers or without a
+             single-letter chain id are omitted with a warning)
+    copy = 0 to only print {default: 1}
+
+EXAMPLES
+
+    print_sel core
+    print_sel visible and (core or surface), rosetta
+    print_sel chain A and boundary, copy=0
     """
     from . import sasa
-    text, warnings = sasa.format_layers(fmt=format)
+    text, skipped = sasa.format_selection(selection, format)
     print(text)
-    for w in warnings:
-        print(" CoreToSurf warning: " + w)
-    if int(copy):
-        try:
-            from pymol.Qt import QtWidgets
-            QtWidgets.QApplication.clipboard().setText(text)
-        except Exception:
-            print(" CoreToSurf: clipboard not available")
+    if skipped:
+        print(" print_sel warning: %d residue(s) with insertion codes, "
+              "negative numbers or without a single-letter chain id "
+              "omitted: %s" % (len(skipped), ", ".join(skipped)))
+    if int(copy) and not copy_to_clipboard(text):
+        print(" print_sel: clipboard not available")
     return text
 
 
@@ -147,6 +165,7 @@ def __init_plugin__(app=None):
 if cmd is not None:
     cmd.extend("coretosurf", coretosurf)
     cmd.auto_arg[0]["coretosurf"] = cmd.auto_arg[0]["zoom"]
-    cmd.extend("coretosurf_print", coretosurf_print)
-    cmd.auto_arg[0]["coretosurf_print"] = [
+    cmd.extend("print_sel", print_sel)
+    cmd.auto_arg[0]["print_sel"] = cmd.auto_arg[0]["zoom"]
+    cmd.auto_arg[1]["print_sel"] = [
         lambda: cmd.Shortcut(["pymol", "rosetta"]), "format", ", "]
