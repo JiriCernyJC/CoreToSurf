@@ -79,7 +79,12 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         apply_btn.clicked.connect(self.update_selection)
         recompute_btn = QtWidgets.QPushButton("Recompute SASA")
         recompute_btn.clicked.connect(self.recompute)
+        reset_btn = QtWidgets.QPushButton("Reset cutoffs")
+        reset_btn.setToolTip("Restore the default cutoffs: %s" %
+                             self._defaults_text())
+        reset_btn.clicked.connect(self.reset_cutoffs)
         row.addWidget(apply_btn)
+        row.addWidget(reset_btn)
         row.addWidget(recompute_btn)
         layout.addLayout(row)
 
@@ -123,6 +128,12 @@ class CoreToSurfWindow(QtWidgets.QWidget):
             slider.setValue(int(round(value)))
             slider.blockSignals(False)
         self._update_labels()
+
+    @staticmethod
+    def _defaults_text():
+        return ", ".join(
+            "%g / %g %s" % (core, bound, UNIT_RANGE[unit][1])
+            for unit, (core, bound) in sasa.DEFAULT_CUTOFFS.items())
 
     def _update_labels(self):
         _, suffix = UNIT_RANGE[self.unit]
@@ -177,6 +188,12 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         if current in names:
             self.obj_combo.setCurrentIndex(names.index(current))
         self.obj_combo.blockSignals(False)
+        self.update_selection()
+
+    def reset_cutoffs(self):
+        # Restore the defaults for both units, then show the current one.
+        self.cutoffs = {u: list(v) for u, v in sasa.DEFAULT_CUTOFFS.items()}
+        self._apply_unit_to_sliders()
         self.update_selection()
 
     def recompute(self):

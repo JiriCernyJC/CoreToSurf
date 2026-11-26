@@ -60,6 +60,7 @@ Install New Plugin* and choose a zip of the `src/coretosurf` folder.
   boundary. Residues at or above it are surface. The two sliders are kept so that core ≤ boundary.
 - **Live update**: when checked, the selections update while a slider is dragged;
   when unchecked, they update when the slider is released.
+- **Reset cutoffs**: restore the default cutoffs (for both units).
 - **Recompute SASA**: discard the cached SASA and recalculate.
 - **Format** + **Print + copy to clipboard**: print the three layers to the
   PyMOL log and copy them to the clipboard, using PDB residue numbers and chains:
