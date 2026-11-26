@@ -8,6 +8,21 @@ accessible surface area (SASA).
 
 ## Installation
 
+### Quick install from the PyMOL prompt
+
+Paste this line into the PyMOL command line. It installs the package into
+PyMOL's own Python and adds *Plugin → Core Boundary Surface* to the menu:
+
+```
+import sys, subprocess, importlib; subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "https://github.com/ajasja/CoreToSurf/archive/refs/heads/main.zip"]); importlib.invalidate_caches(); import coretosurf; coretosurf.install_plugin()
+```
+
+The menu item appears immediately and on every later start. Type `coretosurf`
+(or use the menu) to open the window. Run the same line again to upgrade. Git
+does not need to be installed.
+
+### Install from a shell
+
 Install with the **same Python environment that PyMOL uses**. PyMOL itself is
 not a pip dependency (it is installed with conda or the Schrödinger installer).
 
@@ -49,6 +64,21 @@ Remove it with `coretosurf uninstall-plugin`.
 
 **Option C: classic plugin install without pip.** *Plugin → Plugin Manager →
 Install New Plugin* and choose a zip of the `src/coretosurf` folder.
+
+### Uninstalling
+
+Paste this line into the PyMOL command line. It removes the Plugin menu entry
+and then uninstalls the package from PyMOL's Python:
+
+```
+import sys, subprocess, coretosurf; coretosurf.uninstall_plugin(); subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "coretosurf"])
+```
+
+Restart PyMOL afterwards. From a shell, the same is
+`coretosurf uninstall-plugin` followed by `python -m pip uninstall coretosurf`.
+Remove the plugin entry first: if only the package is removed, the leftover
+loader in PyMOL's startup directory cannot find it when PyMOL starts.
+If you installed with Option C, remove it in *Plugin → Plugin Manager*.
 
 ## Window
 
