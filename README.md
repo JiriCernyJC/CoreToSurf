@@ -1,7 +1,7 @@
 # CoreToSurf
 
 A PyMOL 3 plugin for interactive classification of residues into **core**
-(orange), **boundary** (green) and **surface** (blue) based on solvent
+(tv_orange), **boundary** (tv_green) and **surface** (marine) based on solvent
 accessible surface area (SASA).
 
 ![CoreToSurf: moving the cutoff sliders updates the core, boundary and surface selections](assets/coretosurf_readme_animation.gif)
@@ -53,11 +53,14 @@ Install New Plugin* and choose a zip of the `src/coretosurf` folder.
 ## Window
 
 - **Object**: the molecular object to classify (*Refresh list* after loading new ones).
-- **SASA units**: absolute (Å², 0–250) or relative (% of the theoretical
-  maximum ASA from Tien et al. 2013, 0–100). Each unit remembers its own cutoffs.
+- **SASA units**: absolute (Å², slider 0–100) or relative (% of the theoretical
+  maximum ASA from Tien et al. 2013, slider 0–100). Each unit remembers its own cutoffs.
 - **Core cutoff**: residues with SASA below this value are core.
 - **Boundary cutoff**: residues with SASA from the core cutoff up to this value are
-  boundary. Residues at or above it are surface. The two sliders are kept so that core ≤ boundary.
+  boundary. Residues at or above it are surface. The two cutoffs are kept so that core ≤ boundary.
+- Next to each slider is an edit box. Type a value and press Enter (or leave the box)
+  to apply it. Typed values can have decimals and can be larger than the slider
+  maximum, in which case the slider stays at its end.
 - **Live update**: when checked, the selections update while a slider is dragged;
   when unchecked, they update when the slider is released.
 - **Reset cutoffs**: restore the default cutoffs (for both units).

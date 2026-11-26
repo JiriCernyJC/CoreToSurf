@@ -25,8 +25,8 @@ def coretosurf(selection="", core=None, boundary=None, unit="abs",
 DESCRIPTION
 
     Classify polymer residues into core, boundary and surface by SASA and
-    create the selections "core" (orange), "boundary" (green) and
-    "surface" (blue). SASA is computed once per object and cached.
+    create the selections "core" (tv_orange), "boundary" (tv_green) and
+    "surface" (marine). SASA is computed once per object and cached.
 
 USAGE
 

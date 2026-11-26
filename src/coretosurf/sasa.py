@@ -22,7 +22,7 @@ ALIASES = {
 DEFAULT_MAX_ASA = 200.0  # fallback for residues without a reference value
 
 LAYERS = ("core", "boundary", "surface")
-COLORS = {"core": "orange", "boundary": "green", "surface": "blue"}
+COLORS = {"core": "tv_orange", "boundary": "tv_green", "surface": "marine"}
 
 # Default cutoffs per unit: (core, boundary).
 # Absolute values follow Rosetta's LayerSelector SASA mode.

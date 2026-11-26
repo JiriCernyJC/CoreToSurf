@@ -8,7 +8,7 @@ from . import sasa
 Qt = QtCore.Qt
 
 # Slider ranges per unit: (maximum, label)
-UNIT_RANGE = {"abs": (250, "Å²"), "rel": (100, "%")}
+UNIT_RANGE = {"abs": (100, "Å²"), "rel": (100, "%")}
 
 
 class CoreToSurfWindow(QtWidgets.QWidget):
@@ -17,7 +17,8 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         self.setWindowTitle("Core / Boundary / Surface")
         self.unit = "abs"
         # Remember cutoffs per unit so switching units restores them.
-        self.cutoffs = {u: list(v) for u, v in sasa.DEFAULT_CUTOFFS.items()}
+        self.cutoffs = {u: [float(x) for x in v]
+                        for u, v in sasa.DEFAULT_CUTOFFS.items()}
         self._build_ui()
         self.refresh_objects()
 
@@ -48,16 +49,19 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         row.addStretch(1)
         layout.addLayout(row)
 
-        # Sliders
+        # Sliders, each with an edit box. The edit box accepts any
+        # non-negative value, also beyond the slider range.
         grid = QtWidgets.QGridLayout()
-        self.core_slider, self.core_label = self._make_slider()
-        self.bound_slider, self.bound_label = self._make_slider()
+        self.core_slider, self.core_edit, self.core_unit = self._make_slider()
+        self.bound_slider, self.bound_edit, self.bound_unit =             self._make_slider()
         grid.addWidget(QtWidgets.QLabel("Core cutoff:"), 0, 0)
         grid.addWidget(self.core_slider, 0, 1)
-        grid.addWidget(self.core_label, 0, 2)
+        grid.addWidget(self.core_edit, 0, 2)
+        grid.addWidget(self.core_unit, 0, 3)
         grid.addWidget(QtWidgets.QLabel("Boundary cutoff:"), 1, 0)
         grid.addWidget(self.bound_slider, 1, 1)
-        grid.addWidget(self.bound_label, 1, 2)
+        grid.addWidget(self.bound_edit, 1, 2)
+        grid.addWidget(self.bound_unit, 1, 3)
         grid.setColumnStretch(1, 1)
         layout.addLayout(grid)
 
@@ -65,6 +69,8 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         self.bound_slider.valueChanged.connect(self._on_bound_changed)
         self.core_slider.sliderReleased.connect(self.update_selection)
         self.bound_slider.sliderReleased.connect(self.update_selection)
+        self.core_edit.editingFinished.connect(self._on_core_edited)
+        self.bound_edit.editingFinished.connect(self._on_bound_edited)
 
         # Live update checkbox
         self.live_check = QtWidgets.QCheckBox(
@@ -113,21 +119,21 @@ class CoreToSurfWindow(QtWidgets.QWidget):
     def _make_slider(self):
         slider = QtWidgets.QSlider(Qt.Horizontal)
         slider.setMinimumWidth(220)
-        label = QtWidgets.QLabel()
-        label.setMinimumWidth(60)
-        return slider, label
+        edit = QtWidgets.QLineEdit()
+        edit.setFixedWidth(60)
+        edit.setAlignment(Qt.AlignRight)
+        unit = QtWidgets.QLabel()
+        unit.setMinimumWidth(20)
+        return slider, edit, unit
 
     # ------------------------------------------------------------- helpers
     def _apply_unit_to_sliders(self):
         maximum, _ = UNIT_RANGE[self.unit]
-        core, bound = self.cutoffs[self.unit]
-        for slider, value in ((self.core_slider, core),
-                              (self.bound_slider, bound)):
+        for slider in (self.core_slider, self.bound_slider):
             slider.blockSignals(True)
             slider.setRange(0, maximum)
-            slider.setValue(int(round(value)))
             slider.blockSignals(False)
-        self._update_labels()
+        self._sync_widgets()
 
     @staticmethod
     def _defaults_text():
@@ -135,10 +141,21 @@ class CoreToSurfWindow(QtWidgets.QWidget):
             "%g / %g %s" % (core, bound, UNIT_RANGE[unit][1])
             for unit, (core, bound) in sasa.DEFAULT_CUTOFFS.items())
 
-    def _update_labels(self):
+    def _sync_widgets(self):
+        """Show the stored cutoffs in the sliders and edit boxes.
+
+        Values outside the slider range put the slider at its end.
+        """
         _, suffix = UNIT_RANGE[self.unit]
-        self.core_label.setText("%d %s" % (self.core_slider.value(), suffix))
-        self.bound_label.setText("%d %s" % (self.bound_slider.value(), suffix))
+        core, bound = self.cutoffs[self.unit]
+        for slider, edit, unit, value in (
+                (self.core_slider, self.core_edit, self.core_unit, core),
+                (self.bound_slider, self.bound_edit, self.bound_unit, bound)):
+            slider.blockSignals(True)
+            slider.setValue(int(round(value)))  # QSlider clamps to its range
+            slider.blockSignals(False)
+            edit.setText("%g" % value)
+            unit.setText(suffix)
 
     def _maybe_update(self, slider):
         # With live update off, wait for the slider to be released. Changes
@@ -147,27 +164,52 @@ class CoreToSurfWindow(QtWidgets.QWidget):
         if self.live_check.isChecked() or not slider.isSliderDown():
             self.update_selection()
 
+    def _set_cutoff(self, which, value):
+        """Set the core (0) or boundary (1) cutoff, keeping core <= boundary."""
+        cutoffs = self.cutoffs[self.unit]
+        cutoffs[which] = float(value)
+        if cutoffs[0] > cutoffs[1]:
+            # Move the other cutoff along with the one being changed.
+            cutoffs[1 - which] = cutoffs[which]
+        self._sync_widgets()
+
+    @staticmethod
+    def _parse(edit):
+        """Return the edit box value, or None if it is not a valid number."""
+        try:
+            value = float(edit.text().strip().replace(",", "."))
+        except ValueError:
+            return None
+        if value != value or value < 0:  # NaN or negative
+            return None
+        return value
+
     # -------------------------------------------------------------- slots
     def _on_core_changed(self, value):
-        if value > self.bound_slider.value():
-            self.bound_slider.blockSignals(True)
-            self.bound_slider.setValue(value)
-            self.bound_slider.blockSignals(False)
-        self._store_cutoffs()
+        self._set_cutoff(0, value)
         self._maybe_update(self.core_slider)
 
     def _on_bound_changed(self, value):
-        if value < self.core_slider.value():
-            self.core_slider.blockSignals(True)
-            self.core_slider.setValue(value)
-            self.core_slider.blockSignals(False)
-        self._store_cutoffs()
+        self._set_cutoff(1, value)
         self._maybe_update(self.bound_slider)
 
-    def _store_cutoffs(self):
-        self.cutoffs[self.unit] = [self.core_slider.value(),
-                                   self.bound_slider.value()]
-        self._update_labels()
+    def _on_edited(self, which, edit):
+        value = self._parse(edit)
+        if value is None:
+            self.status.setText("Invalid cutoff '%s'." % edit.text())
+            self._sync_widgets()  # restore the previous value
+            return
+        if value == self.cutoffs[self.unit][which]:
+            self._sync_widgets()  # normalize the text, nothing changed
+            return
+        self._set_cutoff(which, value)
+        self.update_selection()
+
+    def _on_core_edited(self):
+        self._on_edited(0, self.core_edit)
+
+    def _on_bound_edited(self):
+        self._on_edited(1, self.bound_edit)
 
     def _on_unit_changed(self, _checked):
         self.unit = "abs" if self.abs_radio.isChecked() else "rel"
@@ -192,7 +234,8 @@ class CoreToSurfWindow(QtWidgets.QWidget):
 
     def reset_cutoffs(self):
         # Restore the defaults for both units, then show the current one.
-        self.cutoffs = {u: list(v) for u, v in sasa.DEFAULT_CUTOFFS.items()}
+        self.cutoffs = {u: [float(x) for x in v]
+                        for u, v in sasa.DEFAULT_CUTOFFS.items()}
         self._apply_unit_to_sliders()
         self.update_selection()
 
