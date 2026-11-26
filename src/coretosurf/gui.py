@@ -290,13 +290,21 @@ _window = None
 def show_window():
     global _window
     if _window is None:
-        parent = None
+        # No parent: an owned window gets no taskbar button on Windows.
+        _window = CoreToSurfWindow()
+        main = None
         try:
             from pymol import gui
-            parent = gui.get_qtwindow()
+            main = gui.get_qtwindow()
         except Exception:
             pass
-        _window = CoreToSurfWindow(parent)
+        if main is not None:
+            _window.setWindowIcon(main.windowIcon())
+            # Without a parent the window would outlive PyMOL's main window.
+            main.destroyed.connect(_window.close)
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.aboutToQuit.connect(_window.close)
     else:
         _window.refresh_objects()
     _window.show()
